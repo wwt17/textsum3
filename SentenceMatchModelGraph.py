@@ -14,14 +14,14 @@ class SentenceMatchModelGraph(tx.modules.ModuleBase):
         self.global_step = global_step
 
     def _build(self, in_passage_words, passage_lengths, in_question_words, question_lengths, truth):
-    """ truth: a int in [0 .. num_classes] indicating entailment
-    """
+        """ truth: a int in [0 .. num_classes] indicating entailment
+        """
         num_classes = self.num_classes
         word_vocab = self.word_vocab
         is_training = self.is_training
         global_step = self.global_step
         self.in_passage_words = in_passage_words
-        self.passage_lengths = passage_lengt hs
+        self.passage_lengths = passage_lengths
         self.in_question_words = in_question_words
         self.question_lengths = question_lengths
         self.truth = truth
