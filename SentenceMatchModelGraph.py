@@ -5,8 +5,8 @@ import match_utils
 import texar as tx
 
 class SentenceMatchModelGraph(tx.modules.ModuleBase):
-    def __init__(self, num_classes, word_vocab=None, is_training=True, options=None, global_step=None):
-        tx.modules.ModuleBase.__init__(self)
+    def __init__(self, num_classes, word_vocab=None, is_training=True, options=None, global_step=None, hparams=None):
+        tx.modules.ModuleBase.__init__(self, hparams)
         self.options = options
         self.num_classes = num_classes
         self.word_vocab = word_vocab
