@@ -13,18 +13,13 @@ class SentenceMatchModelGraph(tx.modules.ModuleBase):
         self.is_training = is_training
         self.global_step = global_step
 
-    def _build(self, in_passage_words, passage_lengths, in_question_words, question_lengths, truth):
+    def _build(self, in_passage_words, passage_lengths, in_question_words_soft, question_lengths, truth):
         """ truth: a int in [0 .. num_classes] indicating entailment
         """
         num_classes = self.num_classes
         word_vocab = self.word_vocab
         is_training = self.is_training
         global_step = self.global_step
-        self.in_passage_words = in_passage_words
-        self.passage_lengths = passage_lengths
-        self.in_question_words = in_question_words
-        self.question_lengths = question_lengths
-        self.truth = truth
         options = self.options
         # ======word representation layer======
         in_question_repres = []
@@ -40,15 +35,17 @@ class SentenceMatchModelGraph(tx.modules.ModuleBase):
                 self.word_embedding = tf.get_variable("word_embedding", trainable=word_vec_trainable, 
                                                   initializer=tf.constant(word_vocab.word_vecs), dtype=tf.float32)
 
-            in_question_word_repres = tf.nn.embedding_lookup(self.word_embedding, self.in_question_words) # [batch_size, question_len, word_dim]
-            in_passage_word_repres = tf.nn.embedding_lookup(self.word_embedding, self.in_passage_words) # [batch_size, passage_len, word_dim]
+            #in_question_word_repres = tf.nn.embedding_lookup(self.word_embedding, in_question_words_soft) # [batch_size, question_len, word_dim]
+            in_question_word_repres = tx.utils.soft_sequence_embedding(
+                self.word_embedding, in_question_words_soft)
+            in_passage_word_repres = tf.nn.embedding_lookup(self.word_embedding, in_passage_words) # [batch_size, passage_len, word_dim]
             in_question_repres.append(in_question_word_repres)
             in_passage_repres.append(in_passage_word_repres)
 
-            input_shape = tf.shape(self.in_question_words)
+            input_shape = tf.shape(in_question_words_soft)
             batch_size = input_shape[0]
             question_len = input_shape[1]
-            input_shape = tf.shape(self.in_passage_words)
+            input_shape = tf.shape(in_passage_words)
             passage_len = input_shape[1]
             input_dim += word_vocab.word_dim
             
@@ -59,8 +56,8 @@ class SentenceMatchModelGraph(tx.modules.ModuleBase):
             in_question_repres = tf.nn.dropout(in_question_repres, (1 - options.dropout_rate))
             in_passage_repres = tf.nn.dropout(in_passage_repres, (1 - options.dropout_rate))
 
-        mask = tf.sequence_mask(self.passage_lengths, passage_len, dtype=tf.float32) # [batch_size, passage_len]
-        question_mask = tf.sequence_mask(self.question_lengths, question_len, dtype=tf.float32) # [batch_size, question_len]
+        mask = tf.sequence_mask(passage_lengths, passage_len, dtype=tf.float32) # [batch_size, passage_len]
+        question_mask = tf.sequence_mask(question_lengths, question_len, dtype=tf.float32) # [batch_size, question_len]
 
         # ======Highway layer======
         if options.with_highway:
@@ -74,7 +71,7 @@ class SentenceMatchModelGraph(tx.modules.ModuleBase):
 
         # ========Bilateral Matching=====
         (match_representation, match_dim) = match_utils.bilateral_match_func(in_question_repres, in_passage_repres,
-                        self.question_lengths, self.passage_lengths, question_mask, mask, input_dim, is_training, options=options)
+                        question_lengths, passage_lengths, question_mask, mask, input_dim, is_training, options=options)
 
         #========Prediction Layer=========
         # match_dim = 4 * self.options.aggregation_lstm_dim
@@ -91,10 +88,10 @@ class SentenceMatchModelGraph(tx.modules.ModuleBase):
 
         self.prob = tf.nn.softmax(logits)
         
-        gold_matrix = tf.one_hot(self.truth, num_classes, dtype=tf.float32)
+        gold_matrix = tf.one_hot(truth, num_classes, dtype=tf.float32)
         self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=gold_matrix))
 
-        correct = tf.nn.in_top_k(logits, self.truth, 1)
+        correct = tf.nn.in_top_k(logits, truth, 1)
         self.eval_correct = tf.reduce_sum(tf.cast(correct, tf.int32))
         self.predictions = tf.argmax(self.prob, 1)
 

@@ -39,7 +39,7 @@ if __name__ == "__main__":
     disc_result = entailment_model(
         tf.placeholder(tf.int32, [None, None]),
         tf.placeholder(tf.int32, [None]),
-        tf.placeholder(tf.int32, [None, None]),
+        tf.placeholder(tf.float32, [None, None]),
         tf.placeholder(tf.int32, [None]),
         tf.placeholder(tf.int32, [None]))
 
